@@ -22,10 +22,20 @@ CREATE TABLE IF NOT EXISTS doctors (
   name VARCHAR(100) NOT NULL,
   degree VARCHAR(100) NOT NULL,
   fees DECIMAL(10, 2) NOT NULL DEFAULT 0,
-  available_schedule VARCHAR(255) NOT NULL,
+  available_schedule VARCHAR(255) NOT NULL DEFAULT '',
   photo_url VARCHAR(255) DEFAULT NULL,
   FOREIGN KEY (department_id) REFERENCES departments(id)
     ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS doctor_availability (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  doctor_id INT NOT NULL,
+  day_of_week ENUM('Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday') NOT NULL,
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  FOREIGN KEY (doctor_id) REFERENCES doctors(id)
+    ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS appointments (
@@ -69,3 +79,18 @@ INSERT IGNORE INTO doctors (id, department_id, name, degree, fees, available_sch
   (3, 3, 'Dr. Rohan Iyer', 'MBBS, MS (Orthopedics)', 1100.00, 'Tuesday, 11:00 AM to 1:00 PM; Friday, 4:00 PM to 6:00 PM', 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&w=300&q=80'),
   (4, 4, 'Dr. Kavya Nair', 'MBBS, DM (Neurology)', 1500.00, 'Wednesday, 9:30 AM to 11:30 AM; Saturday, 2:00 PM to 4:00 PM', 'https://images.unsplash.com/photo-1594824475317-d4d7f4f2b3f7?auto=format&fit=crop&w=300&q=80'),
   (5, 5, 'Dr. Amit Verma', 'MBBS, MD (General Medicine)', 700.00, 'Monday to Friday, 8:30 AM to 12:30 PM', 'https://images.unsplash.com/photo-1651008376811-b90baee60c1f?auto=format&fit=crop&w=300&q=80');
+
+INSERT IGNORE INTO doctor_availability (doctor_id, day_of_week, start_time, end_time) VALUES
+  (1, 'Friday', '09:00:00', '10:00:00'),
+  (1, 'Saturday', '13:00:00', '14:00:00'),
+  (2, 'Monday', '10:00:00', '12:00:00'),
+  (2, 'Thursday', '15:00:00', '17:00:00'),
+  (3, 'Tuesday', '11:00:00', '13:00:00'),
+  (3, 'Friday', '16:00:00', '18:00:00'),
+  (4, 'Wednesday', '09:30:00', '11:30:00'),
+  (4, 'Saturday', '14:00:00', '16:00:00'),
+  (5, 'Monday', '08:30:00', '12:30:00'),
+  (5, 'Tuesday', '08:30:00', '12:30:00'),
+  (5, 'Wednesday', '08:30:00', '12:30:00'),
+  (5, 'Thursday', '08:30:00', '12:30:00'),
+  (5, 'Friday', '08:30:00', '12:30:00');

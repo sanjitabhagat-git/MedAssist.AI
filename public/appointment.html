@@ -37,8 +37,9 @@
         <h5>3) Select Doctor & Slot</h5>
         <div id="doctorList" class="row g-3 mb-3"></div>
         <div class="row g-3">
-          <div class="col-md-5"><input type="date" id="appointmentDate" class="form-control" /></div>
-          <div class="col-md-4"><input type="time" id="appointmentTime" class="form-control" /></div>
+          <div class="col-md-3"><select id="appointmentDay" class="form-select" disabled><option value="">Select Day</option></select></div>
+          <div class="col-md-3"><select id="appointmentTime" class="form-select" disabled><option value="">Select Time Slot</option></select></div>
+          <div class="col-md-3"><input type="date" id="appointmentDate" class="form-control" /></div>
           <div class="col-md-3"><button id="bookBtn" class="btn btn-dark w-100">Book</button></div>
         </div>
       </section>

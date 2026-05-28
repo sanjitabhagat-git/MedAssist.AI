@@ -1,6 +1,8 @@
 const PDFDocument = require('pdfkit');
 const pool = require('../db');
 
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
 function formatDate(dateValue) {
   const date = new Date(dateValue);
   return date.toLocaleDateString('en-IN', {
@@ -12,6 +14,57 @@ function formatDate(dateValue) {
 
 function formatMoney(value) {
   return Number(value).toFixed(2);
+}
+
+function formatTime(time) {
+  const [hours, minutes] = String(time).split(':');
+  const date = new Date(2000, 0, 1, Number(hours), Number(minutes));
+  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
+function formatAvailability(availability, fallback = '') {
+  if (!availability.length) return fallback;
+  return availability
+    .map((item) => `${item.day_of_week} - ${formatTime(item.start_time)} to ${formatTime(item.end_time)}`)
+    .join('\n');
+}
+
+async function attachAvailability(doctors) {
+  if (!doctors.length) return doctors;
+
+  const ids = doctors.map((doctor) => doctor.id);
+  const [slots] = await pool.query(
+    `SELECT doctor_id, day_of_week, TIME_FORMAT(start_time, '%H:%i') AS start_time,
+            TIME_FORMAT(end_time, '%H:%i') AS end_time
+     FROM doctor_availability
+     WHERE doctor_id IN (?)
+     ORDER BY FIELD(day_of_week, 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'), start_time`,
+    [ids]
+  );
+
+  const slotsByDoctor = slots.reduce((acc, slot) => {
+    acc[slot.doctor_id] = acc[slot.doctor_id] || [];
+    acc[slot.doctor_id].push({
+      day_of_week: slot.day_of_week,
+      start_time: slot.start_time,
+      end_time: slot.end_time
+    });
+    return acc;
+  }, {});
+
+  return doctors.map((doctor) => {
+    const availability = slotsByDoctor[doctor.id] || [];
+    return {
+      ...doctor,
+      availability,
+      available_schedule: formatAvailability(availability, doctor.available_schedule)
+    };
+  });
+}
+
+function getDayName(dateValue) {
+  const date = new Date(`${dateValue}T00:00:00`);
+  return DAY_NAMES[date.getDay()];
 }
 
 exports.getDoctorsByDepartment = async (req, res, next) => {
@@ -30,7 +83,7 @@ exports.getDoctorsByDepartment = async (req, res, next) => {
       [department]
     );
 
-    return res.json(rows);
+    return res.json(await attachAvailability(rows));
   } catch (err) {
     next(err);
   }
@@ -42,6 +95,21 @@ exports.bookAppointment = async (req, res, next) => {
 
     if (!user_id || !doctor_id || !appointment_date || !appointment_time) {
       return res.status(400).json({ error: 'user_id, doctor_id, appointment_date, appointment_time are required.' });
+    }
+
+    const dayOfWeek = getDayName(appointment_date);
+    const [availability] = await pool.query(
+      `SELECT id
+       FROM doctor_availability
+       WHERE doctor_id = ?
+         AND day_of_week = ?
+         AND TIME_FORMAT(start_time, '%H:%i') = ?
+       LIMIT 1`,
+      [doctor_id, dayOfWeek, appointment_time]
+    );
+
+    if (!availability.length) {
+      return res.status(400).json({ error: `Selected time slot is not available for this doctor on ${dayOfWeek}.` });
     }
 
     const [result] = await pool.query(

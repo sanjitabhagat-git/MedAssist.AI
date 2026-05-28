@@ -28,5 +28,7 @@ const upload = multer({ storage });
 router.get('/doctors', getAllDoctorsForAdmin);
 router.post('/doctors', upload.single('photo'), addDoctor);
 router.get('/doctors/:doctorId', getDoctorDetailForAdmin);
+router.put('/doctors/:doctorId', upload.single('photo'), require('../controllers/adminController').updateDoctorForAdmin);
+router.delete('/doctors/:doctorId', require('../controllers/adminController').deleteDoctorForAdmin);
 
 module.exports = router;
