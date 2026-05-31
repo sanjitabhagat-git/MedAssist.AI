@@ -8,13 +8,17 @@ const state = {
   selectedDoctorId: null,
   selectedDoctor: null,
   activeRequests: 0,
-  datePicker: null
+  datePicker: null,
+  speechRecognition: null,
+  speechListening: false,
+  speechBaseText: ''
 };
 
 const elements = {
   status: document.getElementById('status'),
   patientName: document.getElementById('patientName'),
   symptoms: document.getElementById('symptoms'),
+  speechBtn: document.getElementById('speechBtn'),
   aiResultSection: document.getElementById('aiResultSection'),
   departmentText: document.getElementById('departmentText'),
   urgencyText: document.getElementById('urgencyText'),
@@ -29,6 +33,121 @@ const elements = {
 function setStatus(message, isError = false) {
   elements.status.className = isError ? 'small mt-3 text-danger' : 'small mt-3 text-muted';
   elements.status.textContent = message;
+}
+
+function getSpeechRecognition() {
+  return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+}
+
+function setSpeechButtonState(listening) {
+  if (!elements.speechBtn) return;
+
+  elements.speechBtn.classList.toggle('listening', listening);
+  elements.speechBtn.setAttribute('aria-pressed', String(listening));
+  elements.speechBtn.setAttribute('title', listening ? 'Stop listening' : 'Speak symptoms');
+  elements.speechBtn.innerHTML = listening
+    ? '<i class="bi bi-stop-fill" aria-hidden="true"></i>'
+    : '<i class="bi bi-mic-fill" aria-hidden="true"></i>';
+}
+
+function appendSpeechTranscript(transcript) {
+  const baseText = state.speechBaseText.trim();
+  const speechText = transcript.trim();
+  const combined = [baseText, speechText].filter(Boolean).join(' ').trim();
+  elements.symptoms.value = combined;
+}
+
+function initSpeechRecognition() {
+  const SpeechRecognitionCtor = getSpeechRecognition();
+  if (!SpeechRecognitionCtor || !elements.speechBtn) {
+    if (elements.speechBtn) {
+      elements.speechBtn.disabled = true;
+      elements.speechBtn.title = 'Speech-to-text is not supported in this browser';
+    }
+    return;
+  }
+
+  const recognition = new SpeechRecognitionCtor();
+  recognition.lang = 'en-IN';
+  recognition.interimResults = true;
+  recognition.continuous = true;
+  recognition.maxAlternatives = 1;
+
+  recognition.onstart = () => {
+    state.speechListening = true;
+    setSpeechButtonState(true);
+    setStatus('Listening... speak naturally and your words will appear in the symptom box.');
+  };
+
+  recognition.onresult = (event) => {
+    const transcript = Array.from(event.results)
+      .map((result) => result[0].transcript)
+      .join(' ')
+      .trim();
+    appendSpeechTranscript(transcript);
+  };
+
+  recognition.onerror = (event) => {
+    const errorMap = {
+      'not-allowed': 'Microphone access was blocked. Please allow microphone permission in your browser.',
+      'service-not-allowed': 'Speech recognition is not available for this page.',
+      'no-speech': 'No speech was detected. Please try again.',
+      'audio-capture': 'No microphone was found or it is unavailable.',
+      aborted: 'Speech capture was stopped.'
+    };
+    setStatus(errorMap[event.error] || 'Speech-to-text failed. Please try again.', true);
+    state.speechListening = false;
+    setSpeechButtonState(false);
+  };
+
+  recognition.onend = () => {
+    const wasListening = state.speechListening;
+    state.speechListening = false;
+    setSpeechButtonState(false);
+    if (wasListening) {
+      state.speechBaseText = elements.symptoms.value;
+    }
+  };
+
+  state.speechRecognition = recognition;
+}
+
+function startSpeechToText() {
+  if (!state.speechRecognition) {
+    setStatus('Speech-to-text is not supported in this browser.', true);
+    return;
+  }
+
+  state.speechBaseText = elements.symptoms.value;
+
+  try {
+    state.speechRecognition.start();
+  } catch (err) {
+    setStatus('Please wait a moment before starting speech recognition again.', true);
+  }
+}
+
+function stopSpeechToText() {
+  if (!state.speechRecognition) return;
+  try {
+    state.speechRecognition.stop();
+  } catch (_err) {
+    // Ignore stop errors when the recognition session is already ending.
+  }
+}
+
+function toggleSpeechToText() {
+  if (!state.speechRecognition) {
+    setStatus('Speech-to-text is not supported in this browser.', true);
+    return;
+  }
+
+  if (state.speechListening) {
+    stopSpeechToText();
+    return;
+  }
+
+  startSpeechToText();
 }
 
 function escapeHtml(value) {
@@ -464,6 +583,7 @@ async function downloadInvoice(button) {
 }
 
 function bindEvents() {
+  elements.speechBtn?.addEventListener('click', toggleSpeechToText);
   document.getElementById('analyzeBtn').addEventListener('click', analyzeSymptoms);
   document.getElementById('loadDoctorsBtn').addEventListener('click', loadDoctors);
   document.getElementById('bookBtn').addEventListener('click', bookAppointment);
@@ -483,6 +603,7 @@ async function init() {
   auth.watchProtectedPage('patient', 'index.html');
 
   elements.patientName.textContent = `${state.user.name} (${state.user.email})`;
+  initSpeechRecognition();
   bindEvents();
   resetAppointmentFields();
   await loadAppointments();

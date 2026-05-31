@@ -138,6 +138,57 @@ small {
   box-shadow: 0 0 0 0.18rem rgba(79, 70, 229, 0.12);
 }
 
+.symptom-input-wrap {
+  position: relative;
+}
+
+.symptom-input-wrap .form-control {
+  padding-right: 3.4rem;
+  padding-bottom: 3rem;
+  resize: vertical;
+}
+
+.speech-btn {
+  position: absolute;
+  right: 0.7rem;
+  bottom: 0.7rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 0;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #10b981, #0ea5e9);
+  color: #fff;
+  box-shadow: 0 10px 18px rgba(14, 165, 233, 0.25);
+  transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease, opacity 160ms ease;
+}
+
+.speech-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 24px rgba(14, 165, 233, 0.32);
+}
+
+.speech-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.speech-btn:focus-visible {
+  outline: 3px solid rgba(14, 165, 233, 0.28);
+  outline-offset: 2px;
+}
+
+.speech-btn.listening {
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  box-shadow: 0 10px 18px rgba(239, 68, 68, 0.24);
+}
+
+.speech-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .alert {
   border-radius: 16px;
   border: 1px solid rgba(17, 32, 58, 0.08);
