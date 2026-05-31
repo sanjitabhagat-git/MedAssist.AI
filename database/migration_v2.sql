@@ -81,6 +81,19 @@ CREATE TABLE IF NOT EXISTS doctor_availability (
     ON DELETE CASCADE ON UPDATE CASCADE
 );
 
+SET @has_appointment_time := (
+  SELECT COUNT(*)
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'appointments' AND COLUMN_NAME = 'appointment_time'
+);
+SET @sql := IF(@has_appointment_time = 1,
+  'ALTER TABLE appointments MODIFY COLUMN appointment_time VARCHAR(50) NOT NULL',
+  'SELECT ''appointments.appointment_time added in schema'''
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
 INSERT INTO doctor_availability (doctor_id, day_of_week, start_time, end_time)
 SELECT 1, 'Friday', '09:00:00', '10:00:00'
 WHERE NOT EXISTS (SELECT 1 FROM doctor_availability WHERE doctor_id = 1 AND day_of_week = 'Friday' AND start_time = '09:00:00');

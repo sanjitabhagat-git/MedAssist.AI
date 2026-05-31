@@ -77,10 +77,12 @@ function normalizeAiResponse(parsed) {
 
 exports.analyzeSymptoms = async (req, res, next) => {
   try {
-    const { user_id, symptoms } = req.body;
+    const sessionUser = req.session && req.session.user;
+    const { symptoms } = req.body;
+    const userId = sessionUser && sessionUser.id;
 
-    if (!user_id || !symptoms || symptoms.trim().length < 5) {
-      return res.status(400).json({ error: 'user_id and valid symptoms are required.' });
+    if (!userId || !symptoms || symptoms.trim().length < 5) {
+      return res.status(400).json({ error: 'Valid symptoms are required.' });
     }
 
     const ollamaUrl = process.env.OLLAMA_URL || 'http://127.0.0.1:11434/api/generate';
@@ -116,7 +118,7 @@ exports.analyzeSymptoms = async (req, res, next) => {
 
     await pool.query(
       'INSERT INTO symptom_logs (user_id, symptoms, ai_response) VALUES (?, ?, ?)',
-      [user_id, symptoms, JSON.stringify(aiResponse)]
+      [userId, symptoms, JSON.stringify(aiResponse)]
     );
 
     return res.json(aiResponse);

@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS appointments (
   user_id INT NOT NULL,
   doctor_id INT NOT NULL,
   appointment_date DATE NOT NULL,
-  appointment_time TIME NOT NULL,
+  appointment_time VARCHAR(50) NOT NULL,
   status ENUM('booked', 'completed', 'cancelled') NOT NULL DEFAULT 'booked',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id)

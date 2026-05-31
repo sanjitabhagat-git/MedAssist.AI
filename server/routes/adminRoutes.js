@@ -7,6 +7,7 @@ const {
   addDoctor,
   getDoctorDetailForAdmin
 } = require('../controllers/adminController');
+const { requireRole } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -25,10 +26,10 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-router.get('/doctors', getAllDoctorsForAdmin);
-router.post('/doctors', upload.single('photo'), addDoctor);
-router.get('/doctors/:doctorId', getDoctorDetailForAdmin);
-router.put('/doctors/:doctorId', upload.single('photo'), require('../controllers/adminController').updateDoctorForAdmin);
-router.delete('/doctors/:doctorId', require('../controllers/adminController').deleteDoctorForAdmin);
+router.get('/doctors', requireRole('admin'), getAllDoctorsForAdmin);
+router.post('/doctors', requireRole('admin'), upload.single('photo'), addDoctor);
+router.get('/doctors/:doctorId', requireRole('admin'), getDoctorDetailForAdmin);
+router.put('/doctors/:doctorId', requireRole('admin'), upload.single('photo'), require('../controllers/adminController').updateDoctorForAdmin);
+router.delete('/doctors/:doctorId', requireRole('admin'), require('../controllers/adminController').deleteDoctorForAdmin);
 
 module.exports = router;

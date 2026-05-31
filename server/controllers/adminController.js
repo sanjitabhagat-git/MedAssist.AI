@@ -172,7 +172,7 @@ exports.getDoctorDetailForAdmin = async (req, res, next) => {
        FROM appointments a
        JOIN users u ON u.id = a.user_id
        WHERE a.doctor_id = ?
-       ORDER BY a.appointment_date DESC, a.appointment_time DESC`,
+       ORDER BY a.appointment_date DESC, a.created_at DESC`,
       [doctorId]
     );
 

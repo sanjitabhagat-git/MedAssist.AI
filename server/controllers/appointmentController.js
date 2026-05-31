@@ -22,6 +22,10 @@ function formatTime(time) {
   return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
+function formatTimeRange(startTime, endTime) {
+  return `${formatTime(startTime)} to ${formatTime(endTime)}`;
+}
+
 function formatAvailability(availability, fallback = '') {
   if (!availability.length) return fallback;
   return availability
@@ -67,6 +71,13 @@ function getDayName(dateValue) {
   return DAY_NAMES[date.getDay()];
 }
 
+function isPastDate(dateValue) {
+  const selected = new Date(`${dateValue}T00:00:00`);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return selected < today;
+}
+
 exports.getDoctorsByDepartment = async (req, res, next) => {
   try {
     const { department } = req.query;
@@ -91,31 +102,60 @@ exports.getDoctorsByDepartment = async (req, res, next) => {
 
 exports.bookAppointment = async (req, res, next) => {
   try {
+    const sessionUser = req.session && req.session.user;
     const { user_id, doctor_id, appointment_date, appointment_time } = req.body;
+    const resolvedUserId = sessionUser ? sessionUser.id : user_id;
 
-    if (!user_id || !doctor_id || !appointment_date || !appointment_time) {
-      return res.status(400).json({ error: 'user_id, doctor_id, appointment_date, appointment_time are required.' });
+    if (!resolvedUserId || !doctor_id || !appointment_date || !appointment_time) {
+      return res.status(400).json({ error: 'doctor_id, appointment_date and appointment_time are required.' });
+    }
+
+    if (isPastDate(appointment_date)) {
+      return res.status(400).json({ error: 'Appointment date cannot be in the past.' });
     }
 
     const dayOfWeek = getDayName(appointment_date);
     const [availability] = await pool.query(
-      `SELECT id
+      `SELECT id, start_time, end_time
        FROM doctor_availability
        WHERE doctor_id = ?
-         AND day_of_week = ?
-         AND TIME_FORMAT(start_time, '%H:%i') = ?
-       LIMIT 1`,
-      [doctor_id, dayOfWeek, appointment_time]
+         AND day_of_week = ?`,
+      [doctor_id, dayOfWeek]
     );
 
     if (!availability.length) {
       return res.status(400).json({ error: `Selected time slot is not available for this doctor on ${dayOfWeek}.` });
     }
 
+    const matchedSlot = availability.find(
+      (slot) => formatTimeRange(slot.start_time, slot.end_time) === appointment_time
+    );
+
+    if (!matchedSlot) {
+      return res.status(400).json({ error: `Selected time slot is not available for this doctor on ${dayOfWeek}.` });
+    }
+
+    const appointmentTimeLabel = formatTimeRange(matchedSlot.start_time, matchedSlot.end_time);
+
+    const [existing] = await pool.query(
+      `SELECT id
+       FROM appointments
+       WHERE doctor_id = ?
+         AND appointment_date = ?
+         AND appointment_time = ?
+         AND status = 'booked'
+       LIMIT 1`,
+      [doctor_id, appointment_date, appointmentTimeLabel]
+    );
+
+    if (existing.length) {
+      return res.status(409).json({ error: 'This appointment slot has already been booked.' });
+    }
+
     const [result] = await pool.query(
       `INSERT INTO appointments (user_id, doctor_id, appointment_date, appointment_time, status)
        VALUES (?, ?, ?, ?, 'booked')`,
-      [user_id, doctor_id, appointment_date, appointment_time]
+      [resolvedUserId, doctor_id, appointment_date, appointmentTimeLabel]
     );
 
     return res.status(201).json({
@@ -129,7 +169,12 @@ exports.bookAppointment = async (req, res, next) => {
 
 exports.getAppointmentsByUser = async (req, res, next) => {
   try {
-    const { userId } = req.params;
+    const sessionUser = req.session && req.session.user;
+    const userId = sessionUser && sessionUser.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Session expired. Please log in again.' });
+    }
 
     const [rows] = await pool.query(
       `SELECT a.id, a.appointment_date, a.appointment_time, a.status,
@@ -138,7 +183,7 @@ exports.getAppointmentsByUser = async (req, res, next) => {
        JOIN doctors d ON d.id = a.doctor_id
        JOIN departments dp ON dp.id = d.department_id
        WHERE a.user_id = ?
-       ORDER BY a.appointment_date DESC, a.appointment_time DESC`,
+       ORDER BY a.appointment_date DESC, a.created_at DESC`,
       [userId]
     );
 
@@ -151,10 +196,11 @@ exports.getAppointmentsByUser = async (req, res, next) => {
 exports.downloadAppointmentInvoice = async (req, res, next) => {
   try {
     const { appointmentId } = req.params;
-    const { user_id } = req.query;
+    const sessionUser = req.session && req.session.user;
+    const userId = sessionUser && sessionUser.id;
 
-    if (!user_id) {
-      return res.status(400).json({ error: 'user_id query parameter is required.' });
+    if (!userId) {
+      return res.status(401).json({ error: 'Session expired. Please log in again.' });
     }
 
     const [rows] = await pool.query(
@@ -166,7 +212,7 @@ exports.downloadAppointmentInvoice = async (req, res, next) => {
        JOIN doctors d ON d.id = a.doctor_id
        JOIN departments dp ON dp.id = d.department_id
        WHERE a.id = ? AND a.user_id = ?`,
-      [appointmentId, user_id]
+      [appointmentId, userId]
     );
 
     if (!rows.length) {
