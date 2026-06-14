@@ -16,8 +16,8 @@
           <form id="registerForm" class="row g-3">
             <div class="col-12"><input id="name" class="form-control" placeholder="Name" required /></div>
             <div class="col-12"><input id="email" type="email" class="form-control" placeholder="Email" required /></div>
-            <div class="col-12"><input id="phone" class="form-control" placeholder="Phone" required /></div>
-            <div class="col-12"><input id="password" type="password" class="form-control" placeholder="Password" required /></div>
+            <div class="col-12"><input id="phone" class="form-control" placeholder="Phone" maxlength="10" required /></div>
+            <div class="col-12"><input id="password" type="password" class="form-control" placeholder="Password" minlength="6" maxlength="10" required /></div>
             <div class="col-12"><button class="btn btn-primary w-100" type="submit">Register</button></div>
           </form>
           <p id="status" class="small mt-3"></p>

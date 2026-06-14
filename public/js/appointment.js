@@ -480,6 +480,10 @@ async function loadDoctors() {
 
 async function analyzeSymptoms() {
   try {
+    if (state.speechListening) {
+      stopSpeechToText();
+    }
+
     const symptoms = elements.symptoms.value.trim();
     if (symptoms.length < 5) {
       throw new Error('Please enter detailed symptoms.');
